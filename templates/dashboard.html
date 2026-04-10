@@ -89,7 +89,10 @@
                 </div>
 
                 <div class="mt-6 pt-4 border-t border-gray-800">
-                    <h4 class="text-xs text-gray-500 uppercase mb-3">Multi-Timeframe Bias Synchronization</h4>
+                    <h4 class="text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                        Multi-Timeframe Bias Sync 
+                        <span class="bg-blue-900 border border-blue-500 text-blue-300 px-2 rounded-lg text-[10px]" id="bias-mode">MODE</span>
+                    </h4>
                     <div class="grid grid-cols-4 gap-2 text-center text-sm font-bold">
                         <div class="bg-gray-800 rounded py-2"><span class="block text-[10px] text-gray-500 mb-1">M30</span><span id="m30-bias">--</span></div>
                         <div class="bg-gray-800 rounded py-2"><span class="block text-[10px] text-gray-500 mb-1">H1</span><span id="h1-bias">--</span></div>
@@ -175,6 +178,7 @@
                 document.getElementById('h1-bias').innerHTML  = formatBias(data.h1_bias);
                 document.getElementById('h4-bias').innerHTML  = formatBias(data.h4_bias);
                 document.getElementById('d1-bias').innerHTML  = formatBias(data.d1_bias);
+                document.getElementById('bias-mode').innerText = data.bias_mode || "N/A";
 
                 // Logs
                 const logHTML = data.log.map(L => {

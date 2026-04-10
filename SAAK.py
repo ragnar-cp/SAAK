@@ -399,6 +399,14 @@ def bot_thread():
             state["live_spread"] = int((tick.ask - tick.bid) * 100) # converting to rough points
             pnl = get_positions_pnl()
             state["live_pnl"] = pnl
+        
+        # [SCAN BIAS EVERY 500MS]
+        m30_b = get_candle_bias(mt5.TIMEFRAME_M30)
+        h1_b  = get_candle_bias(mt5.TIMEFRAME_H1)
+        h4_b  = get_candle_bias(mt5.TIMEFRAME_H4)
+        d1_b  = get_candle_bias(mt5.TIMEFRAME_D1)
+        with lock:
+            state["m30_bias"], state["h1_bias"], state["h4_bias"], state["d1_bias"] = m30_b, h1_b, h4_b, d1_b
 
         # -- BASKET MANAGEMENT --
         if b_active and entry_p is not None:
@@ -484,10 +492,7 @@ def bot_thread():
                 continue # Skip repetitive checks for efficiency 
             state["last_bar_time"] = bar_t
 
-        # Compute higher biases
-        m30_b, h1_b, h4_b, d1_b = get_candle_bias(mt5.TIMEFRAME_M30), get_candle_bias(mt5.TIMEFRAME_H1), get_candle_bias(mt5.TIMEFRAME_H4), get_candle_bias(mt5.TIMEFRAME_D1)
-        with lock:
-            state["m30_bias"], state["h1_bias"], state["h4_bias"], state["d1_bias"] = m30_b, h1_b, h4_b, d1_b
+        # Higher biases already computed at top of loop
 
         b_bull = b_bear = True
         if BIAS_MODE == "M30_H1_H4":

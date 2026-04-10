@@ -538,6 +538,7 @@ def index(): return render_template("dashboard.html")
 def api_state():
     with lock:
         s = dict(state)
+        s["bias_mode"] = BIAS_MODE
         s["positions"] = []
         positions = mt5.positions_get(symbol=SYMBOL)
         if positions:

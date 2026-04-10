@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAAK Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d0d0d; color: #f0f0f0; font-family: monospace; }
+        .neon-card { border: 2px solid #f0c040; box-shadow: 0 0 10px rgba(240, 192, 64, 0.2); }
+        .green-glow { text-shadow: 0 0 8px #66ffaa; }
+        .red-glow { text-shadow: 0 0 8px #ff8a8a; }
+        .gold-acc { color: #f0c040; }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8 border-b-2 border-gray-800 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold gold-acc tracking-wider flex items-center gap-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    SAAK LIVE BOT OVERVIEW
+                </h1>
+                <p id="bot-status" class="text-sm mt-2 font-bold text-gray-400 uppercase">STATUS: INITIALIZING...</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xl font-bold" id="live-price">---</p>
+                <p class="text-xs text-gray-500" id="live-spread">Spread: --- pts</p>
+            </div>
+        </div>
+
+        <!-- Control Blocks -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gray-900 rounded-xl p-5 border border-gray-800 text-center cursor-pointer hover:bg-gray-800 transition" onclick="postCmd('/start')">
+                <h2 class="text-green-400 font-bold mb-1 uppercase tracking-wide">▶ Start Bot</h2>
+            </div>
+            <div class="bg-gray-900 rounded-xl p-5 border border-gray-800 text-center cursor-pointer hover:bg-gray-800 transition" onclick="postCmd('/stop')">
+                <h2 class="text-red-400 font-bold mb-1 uppercase tracking-wide">⏹ Stop Bot</h2>
+            </div>
+            <div class="bg-gray-900 rounded-xl p-5 border border-gray-800 text-center cursor-pointer hover:bg-gray-800 transition" onclick="postCmd('/close_all')">
+                <h2 class="text-yellow-400 font-bold mb-1 uppercase tracking-wide">⏏ Close All</h2>
+            </div>
+            <div class="bg-gray-900 rounded-xl p-5 border border-gray-800 text-center cursor-pointer hover:bg-gray-800 transition" onclick="postCmd('/reset_session')">
+                <h2 class="text-blue-400 font-bold mb-1 uppercase tracking-wide">↺ Reset Session</h2>
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="neon-card bg-[#111] rounded-xl p-5">
+                <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Session PnL</p>
+                <div class="text-3xl font-bold" id="session-pnl">$0.00</div>
+            </div>
+            <div class="neon-card bg-[#111] rounded-xl p-5">
+                <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Open Nav (Float)</p>
+                <div class="text-3xl font-bold" id="live-pnl">$0.00</div>
+            </div>
+            <div class="neon-card bg-[#111] rounded-xl p-5 border-gray-800">
+                <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Closed Trades</p>
+                <div class="text-3xl font-bold text-gray-200" id="closed-trades">0</div>
+            </div>
+            <div class="neon-card bg-[#111] rounded-xl p-5 border-gray-800">
+                <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Daily Cap Left</p>
+                <div class="text-3xl font-bold text-gray-200" id="daily-cap">$0.00</div>
+            </div>
+        </div>
+
+        <!-- System State -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Active State -->
+            <div class="bg-gray-900 rounded-xl p-6 border border-gray-800 relative fade-in">
+                <h3 class="gold-acc font-bold uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">Live Evaluation Engine</h3>
+                
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm text-gray-400">Basket Active:</span>
+                    <span class="font-bold bg-gray-800 px-3 py-1 rounded text-red-400" id="basket-active">FALSE</span>
+                </div>
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm text-gray-400">Basket Direction:</span>
+                    <span class="font-bold text-gray-200" id="basket-dir">N/A</span>
+                </div>
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm text-gray-400">Basket Base Entry:</span>
+                    <span class="font-bold text-gray-200" id="basket-entry">N/A</span>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-gray-800">
+                    <h4 class="text-xs text-gray-500 uppercase mb-3">Multi-Timeframe Bias Synchronization</h4>
+                    <div class="grid grid-cols-4 gap-2 text-center text-sm font-bold">
+                        <div class="bg-gray-800 rounded py-2"><span class="block text-[10px] text-gray-500 mb-1">M30</span><span id="m30-bias">--</span></div>
+                        <div class="bg-gray-800 rounded py-2"><span class="block text-[10px] text-gray-500 mb-1">H1</span><span id="h1-bias">--</span></div>
+                        <div class="bg-gray-800 rounded py-2"><span class="block text-[10px] text-gray-500 mb-1">H4</span><span id="h4-bias">--</span></div>
+                        <div class="bg-gray-800 rounded py-2"><span class="block text-[10px] text-gray-500 mb-1">D1</span><span id="d1-bias">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal Output -->
+            <div class="bg-[#0a0a0a] rounded-xl border border-gray-800 flex flex-col h-full fade-in">
+                <div class="bg-gray-900 border-b border-gray-800 px-4 py-3 rounded-t-xl flex justify-between items-center">
+                    <h3 class="gold-acc text-sm font-bold uppercase tracking-wider">Terminal Output</h3>
+                    <span class="flex h-3 w-3"><span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
+                </div>
+                <div class="p-4 overflow-y-auto h-64 text-xs font-mono text-gray-400 leading-relaxed" id="log-view">
+                    <!-- Logs injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Open Positions -->
+        <h3 class="gold-acc text-lg font-bold uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">Open Positions Matrix</h3>
+        <div class="bg-[#111] rounded-xl border border-gray-800 overflow-x-auto fade-in">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead class="bg-gray-900 text-gray-400 border-b border-gray-800">
+                    <tr>
+                        <th class="px-6 py-4 font-bold">Ticket #</th>
+                        <th class="px-6 py-4 font-bold">Type</th>
+                        <th class="px-6 py-4 font-bold">Lots</th>
+                        <th class="px-6 py-4 font-bold">Open Price</th>
+                        <th class="px-6 py-4 font-bold">Current Price</th>
+                        <th class="px-6 py-4 font-bold text-right">PnL</th>
+                    </tr>
+                </thead>
+                <tbody id="positions-table" class="divide-y divide-gray-800">
+                    <tr><td colspan="6" class="px-6 py-8 text-center text-gray-600">No active positions. Scanning markets...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function colorNumber(el, val, prefix='$') {
+            el.innerText = `${val >= 0 ? '+' : '-'}${prefix}${Math.abs(val).toFixed(2)}`;
+            el.className = `text-3xl font-bold ${val >= 0 ? 'text-[#66ffaa] green-glow' : 'text-[#ff8a8a] red-glow'}`;
+        }
+
+        function formatBias(val) {
+            if(val === "BULL") return '<span class="text-green-400">BULL</span>';
+            if(val === "BEAR") return '<span class="text-red-400">BEAR</span>';
+            return `<span class="text-gray-400">${val || "N/A"}</span>`;
+        }
+
+        async function fetchState() {
+            try {
+                const res = await fetch('http://localhost:5050/state');
+                const data = await res.json();
+                
+                // Header
+                document.getElementById('live-price').innerText = data.live_price.toFixed(2);
+                document.getElementById('live-spread').innerText = `Spread: ${data.live_spread} pts | Telegram: ${data.telegram_status}`;
+                document.getElementById('bot-status').innerText = data.running ? "STATUS: RUNNING & SCANNING" : "STATUS: PAUSED";
+                document.getElementById('bot-status').className = `text-sm mt-2 font-bold uppercase tracking-widest ${data.running ? 'text-green-400' : 'text-red-400'}`;
+
+                // Metrics
+                colorNumber(document.getElementById('session-pnl'), data.session_pnl);
+                colorNumber(document.getElementById('live-pnl'), data.live_pnl);
+                document.getElementById('closed-trades').innerText = data.closed_trades;
+                document.getElementById('daily-cap').innerText = `$${Math.max(0, data.max_daily_loss - data.daily_loss).toFixed(2)}`;
+
+                // Active Engine
+                const act = document.getElementById('basket-active');
+                act.innerText = data.basket_active ? "TRUE" : "FALSE";
+                act.className = `font-bold px-3 py-1 rounded text-white ${data.basket_active ? 'bg-green-600 shadow-[0_0_10px_#10b981]' : 'bg-red-600'}`;
+                
+                document.getElementById('basket-dir').innerText = data.direction || "N/A";
+                document.getElementById('basket-dir').className = `font-bold ${data.direction === 'BUY' ? 'text-green-400' : (data.direction === 'SELL' ? 'text-red-400' : 'text-gray-400')}`;
+                
+                document.getElementById('basket-entry').innerText = data.entry_price ? data.entry_price.toFixed(2) : "N/A";
+
+                document.getElementById('m30-bias').innerHTML = formatBias(data.m30_bias);
+                document.getElementById('h1-bias').innerHTML  = formatBias(data.h1_bias);
+                document.getElementById('h4-bias').innerHTML  = formatBias(data.h4_bias);
+                document.getElementById('d1-bias').innerHTML  = formatBias(data.d1_bias);
+
+                // Logs
+                const logHTML = data.log.map(L => {
+                    let col = 'text-gray-400';
+                    if(L.type === 'buy') col = 'text-green-300';
+                    if(L.type === 'sell') col = 'text-red-300';
+                    if(L.type === 'tp') col = 'text-[#66ffaa] font-bold';
+                    if(L.type === 'sl' || L.type === 'error') col = 'text-[#ff8a8a] font-bold';
+                    if(L.type === 'warn') col = 'text-yellow-400';
+                    return `<div><span class="text-gray-600">[${L.time}]</span> <span class="${col}">${L.msg}</span></div>`;
+                }).join('');
+                document.getElementById('log-view').innerHTML = logHTML || "<div>Awaiting terminal execution...</div>";
+
+                // Positions
+                if(!data.positions || data.positions.length === 0) {
+                    document.getElementById('positions-table').innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-600">No active positions. Scanning markets...</td></tr>';
+                } else {
+                    document.getElementById('positions-table').innerHTML = data.positions.map(p => `
+                        <tr class="hover:bg-gray-800 transition">
+                            <td class="px-6 py-4 text-gray-300">#${p.ticket}</td>
+                            <td class="px-6 py-4 font-bold ${p.type === 'BUY' ? 'text-green-400' : 'text-red-400'}">${p.type}</td>
+                            <td class="px-6 py-4 text-gray-300">${p.lot}L</td>
+                            <td class="px-6 py-4 text-gray-300">${p.price_open.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-gray-300">${p.price_cur.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-right font-bold ${p.pnl >= 0 ? 'text-[#66ffaa]' : 'text-[#ff8a8a]'}">${p.pnl >= 0 ? '+' : ''}$${p.pnl.toFixed(2)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+            } catch(e) {
+                document.getElementById('bot-status').innerText = "STATUS: DISCONNECTED T_T";
+                document.getElementById('bot-status').className = "text-sm mt-2 font-bold uppercase tracking-widest text-[#ff8a8a] animate-pulse";
+            }
+        }
+
+        async function postCmd(cmd) {
+            try {
+                await fetch(`http://localhost:5050${cmd}`, {method: 'POST'});
+                fetchState();
+            } catch(e) {
+                alert(`Error issuing ${cmd}`);
+            }
+        }
+
+        setInterval(fetchState, 1000);
+        fetchState();
+    </script>
+</body>
+</html>

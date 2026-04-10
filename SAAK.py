@@ -8,12 +8,12 @@ import pandas as pd
 import numpy as np
 import telebot
 from flask import Flask, jsonify, render_template
-
+from flask_cors import CORS
 # =========================
 # CONFIGURATION
 # =========================
-TELEGRAM_TOKEN   = "YOUR_TELEGRAM_BOT_TOKEN_HERE"   # <--- PUT TOKEN HERE
-TELEGRAM_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID_HERE"     # <--- PUT CHAT ID HERE
+TELEGRAM_TOKEN   = "8386293337:AAE5TJOM3VfrUb0dF313eBsRQxf_Rkt4ylI"
+TELEGRAM_CHAT_ID = "7858967749"
 
 MT5_LOGIN     = 24367452
 MT5_PASSWORD  = "UY61&jYZ"
@@ -75,7 +75,7 @@ def add_log(msg, type_="info"):
 # TELEGRAM BOT
 # =========================
 tbot = None
-if TELEGRAM_TOKEN != "YOUR_TELEGRAM_BOT_TOKEN_HERE":
+if TELEGRAM_TOKEN and len(TELEGRAM_TOKEN) > 10:
     try:
         tbot = telebot.TeleBot(TELEGRAM_TOKEN)
         state["telegram_status"] = "ONLINE"
@@ -101,7 +101,7 @@ if TELEGRAM_TOKEN != "YOUR_TELEGRAM_BOT_TOKEN_HERE":
         print("Telegram init failed:", e)
 
 def tg_say(msg):
-    if tbot and TELEGRAM_CHAT_ID != "YOUR_TELEGRAM_CHAT_ID_HERE":
+    if tbot and TELEGRAM_CHAT_ID:
         try: tbot.send_message(TELEGRAM_CHAT_ID, msg)
         except: pass
 
@@ -303,10 +303,10 @@ def get_rates(tf, n=120):
     return df
 
 def get_candle_bias(tf):
-    # Returns the bias of the last CLOSED candle for a timeframe
+    # Returns the bias of the LIVE, evolving candle for a timeframe
     rates = get_rates(tf, 3)
-    if rates is None or len(rates) < 2: return "N/A"
-    last = rates.iloc[-2]
+    if rates is None or len(rates) < 1: return "N/A"
+    last = rates.iloc[-1]
     if last["close"] > last["open"]: return "BULL"
     if last["close"] < last["open"]: return "BEAR"
     return "NEUTRAL"
@@ -435,16 +435,43 @@ def bot_thread():
                 liquidate("DAILY SL OVERSHOOT GUARD", False)
                 continue
 
+            with lock:
+                be_touched = state["g2_be_touched"]
+                be_bar = state["g2_be_bar"]
+                
+            if n == 3 and not be_touched and pnl >= 0:
+                with lock:
+                    state["g2_be_touched"] = True
+                    state["g2_be_bar"] = (int(tick.time) // 900) * 900
+                    be_touched = True
+                    be_bar = state["g2_be_bar"]
+                add_log("G2 hit breakeven. -$100 SL activated until candle closed.", "warn")
+                tg_say("⚠️ SAAK UPDATE: G2 Hit Breakeven. Trailing -100$ SL active.")
+
             if n == 1:
                 tp = entry_p + SINGLE_TRADE_TP_PRICE if direction == "BUY" else entry_p - SINGLE_TRADE_TP_PRICE
                 if (direction == "BUY" and mid >= tp) or (direction == "SELL" and mid <= tp):
                     if pnl > 0: liquidate("SINGLE TARGET REACHED", True)
             elif n == 2 and pnl >= TARGET_PROFIT: liquidate("G1 TARGET REACHED", True)
-            elif n == 3 and pnl >= TARGET_PROFIT_G2: liquidate("G2 TARGET REACHED", True)
-            elif n >= 4 and pnl > 0: liquidate("BREAKEVEN RECOVERY DONE", True)
+            elif n >= 3:
+                if pnl >= TARGET_PROFIT_G2: 
+                    liquidate("G2 TARGET REACHED", True)
+                elif be_touched:
+                    if pnl <= -100.0:
+                        liquidate("G2 TRAILING SL (-$100)", False)
+                        continue
+                    elif (int(tick.time) // 900) * 900 > be_bar:
+                        liquidate("G2 CANDLE END EXIT", pnl >= 0)
+                        continue
 
         # -- ENTRY LOGIC --
         if not running or b_active: continue
+        
+        # [NEW LOGIC] Skip 1st M15 candle of a new hour 
+        # (meaning from XX:00 to XX:15)
+        if (int(tick.time) % 3600) < 900:
+            continue
+
         
         m15_rates = get_rates(mt5.TIMEFRAME_M15, SR_LOOKBACK + 30)
         if m15_rates is None or len(m15_rates) < 25: continue
@@ -503,7 +530,7 @@ def bot_thread():
 # FLASK API
 # =========================
 app = Flask(__name__, template_folder="templates")
-
+CORS(app)
 @app.route("/")
 def index(): return render_template("dashboard.html")
 
@@ -542,7 +569,10 @@ def _stop():
 
 @app.route("/close_all", methods=["POST"])
 def _cl_all():
-    with lock: state["basket_active"] = False
+    with lock:
+        state["basket_active"] = False
+        state["g2_be_touched"] = False
+        state["g2_be_bar"] = 0
     close_all()
     add_log("Emergency CLOSE ALL via dashboard", "warn")
     return jsonify({"ok": True})

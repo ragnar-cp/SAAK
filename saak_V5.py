@@ -523,16 +523,7 @@ def bot_thread():
                     liquidate("G3 CANDLE END EXIT", pnl >= 0)
                     continue
             
-            # Immediate Profit Targets
-            if n == 1 and pnl >= SINGLE_TRADE_TP_PRICE:
-                liquidate("SINGLE TRADE TP REACHED", True)
-                continue
-            if n == 2 and pnl >= TARGET_PROFIT:
-                liquidate("G1 TARGET REACHED", True)
-                continue
-            if n >= 3 and pnl >= TARGET_PROFIT_G2:
-                liquidate("G2 TARGET REACHED", True)
-                continue
+
 
         # -- ENTRY LOGIC --
         if not running or b_active: continue

@@ -40,7 +40,7 @@ discovered_filling = mt5.ORDER_FILLING_RETURN
 # =========================
 # STATE
 # =========================
-lock = threading.Lock()
+lock = threading.RLock()  # RLock to prevent deadlock if add_log is called inside a locked section
 state = {
     "running": False,
     "basket_active": False,
@@ -490,13 +490,16 @@ def bot_thread():
             # 4. TP Latching (v9pro)
             tp_price = get_basket_tp(entry_p, direction, n, all_pos)
             
+            tp_just_touched = False
             with lock:
                 if not state["tp_triggered"]:
                     is_tp_touched = (direction == "BUY" and mid >= tp_price) or (direction == "SELL" and mid <= tp_price)
                     if is_tp_touched:
                         state["tp_triggered"] = True
-                        add_log(f"TP Level Touched ({tp_price:.2f}). Latching exit for candle close.", "info")
+                        tp_just_touched = True
                 tp_latched = state["tp_triggered"]
+            if tp_just_touched:
+                add_log(f"TP Level Touched ({tp_price:.2f}). Latching exit for candle close.", "info")
 
             # 5. G2/G3 Breakeven & Trailing (n >= 3)
             with lock:

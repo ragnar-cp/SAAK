@@ -87,6 +87,10 @@
                     <span class="text-sm text-gray-400">Basket Base Entry:</span>
                     <span class="font-bold text-gray-200" id="basket-entry">N/A</span>
                 </div>
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm text-gray-400">Cooldown Active:</span>
+                    <span class="font-bold px-3 py-1 rounded text-xs" id="cooldown-active">FALSE</span>
+                </div>
 
                 <div class="mt-6 pt-4 border-t border-gray-800">
                     <h4 class="text-xs text-gray-400 uppercase tracking-widest mb-3 flex items-center justify-between">
@@ -173,6 +177,19 @@
                 document.getElementById('basket-dir').className = `font-bold ${data.direction === 'BUY' ? 'text-green-400' : (data.direction === 'SELL' ? 'text-red-400' : 'text-gray-400')}`;
                 
                 document.getElementById('basket-entry').innerText = data.entry_price ? data.entry_price.toFixed(2) : "N/A";
+
+                // Cooldown Status
+                const cool = document.getElementById('cooldown-active');
+                if (data.skip_this_candle) {
+                    cool.innerText = "SKIPPING CANDLE";
+                    cool.className = "font-bold px-3 py-1 rounded text-white bg-orange-600 animate-pulse text-xs";
+                } else if (data.cooldown_active) {
+                    cool.innerText = "PENDING NEXT BAR";
+                    cool.className = "font-bold px-3 py-1 rounded text-white bg-blue-600 text-xs";
+                } else {
+                    cool.innerText = "FALSE";
+                    cool.className = "font-bold px-3 py-1 rounded text-gray-500 bg-gray-800 text-xs";
+                }
 
                 document.getElementById('m30-bias').innerHTML = formatBias(data.m30_bias);
                 document.getElementById('h1-bias').innerHTML  = formatBias(data.h1_bias);
